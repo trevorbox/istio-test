@@ -1,0 +1,39 @@
+---
+- name: Install httpbin and sleep applications for Istio testing
+  hosts: localhost
+  gather_facts: false
+  vars:
+    - namespaces:
+      - foo
+      - bar
+      - legacy
+      - legacy2
+    - app_src_dir: app
+  tasks:
+    - name: Create a k8s namespace
+      k8s:
+        name: "{{ item }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+      loop: "{{ namespaces }}"
+
+    - name: Create SCC for httpbin ServiceAccount
+      k8s:
+        state: present
+        definition: "{{ lookup('template', 'templates/scc-httpbin-anyuid.j2') }}"
+
+    - name: Discover app deployment files
+      find:
+        paths: "{{ app_src_dir }}"
+        patterns: "*.yml,*.yaml"
+      register: app_files
+
+    - name: Deploy apps to namespaces
+      k8s:
+        state: present
+        namespace: "{{ item[0] }}"
+        src: "{{ item[1].path }}"
+      with_nested:
+        - "{{ namespaces }}"
+        - "{{ app_files.files }}"
