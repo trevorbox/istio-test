@@ -9,6 +9,9 @@
       - legacy
       - legacy2
     - app_src_dir: app
+    - control_plane_name: oauth2-mtls-install
+    - control_plane_namespace: istio-system
+    - istio_src_dir: istio
   tasks:
     - name: Create a k8s namespace
       k8s:
@@ -16,6 +19,13 @@
         api_version: v1
         kind: Namespace
         state: present
+      loop: "{{ namespaces }}"
+
+    - name: Opt into the Service Mesh Control Plane with ServiceMeshMember (your account needs the maistra-user role granted on the control plane to do this)
+      k8s:
+        state: present
+        namespace: "{{ item }}"
+        definition: "{{ lookup('template', '{{ istio_src_dir }}/templates/servicemeshmember-default.j2') }}"
       loop: "{{ namespaces }}"
 
     - name: Create SCC for httpbin ServiceAccount
